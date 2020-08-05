@@ -2,8 +2,13 @@ terraform {
   required_version = ">= 0.12, < 0.13"
 }
 
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 locals {
   # The marketplace product code for all BYOL versions of VM-Series
+  availability_zones = data.aws_availability_zones.available.names
   product_code = "6njl1pau431dv1qxipg63mvah"
   management_sg_rules = {
     ssh-from-on-prem = {
@@ -85,7 +90,7 @@ data "aws_ami" "vmseries" {
   }
 }*/
 
-data "aws_ami" "ubuntu-linux" {
+data "aws_ami" "ubuntu_linux" {
   most_recent = true
 
   filter {
@@ -131,7 +136,7 @@ resource "aws_internet_gateway" "default" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.default.id
   cidr_block              = var.public_subnet_cidr_block
-  availability_zone       = var.availability_zones
+  availability_zone       = local.availability_zones[0]
   map_public_ip_on_launch = true
 
   tags = merge(
@@ -148,7 +153,7 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "management" {
   vpc_id                  = aws_vpc.default.id
   cidr_block              = var.management_subnet_cidr_block
-  availability_zone       = var.availability_zones
+  availability_zone       = local.availability_zones[0]
   map_public_ip_on_launch = true
 
   tags = merge(
@@ -165,7 +170,7 @@ resource "aws_subnet" "management" {
 resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.default.id
   cidr_block        = var.private_subnet_cidr_block
-  availability_zone = var.availability_zones
+  availability_zone = local.availability_zones[0]
 
   tags = merge(
     {
@@ -233,7 +238,7 @@ resource "aws_route_table" "private" {
 resource "aws_route" "private" {
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_network_interface.private.id
+  network_interface_id   = aws_network_interface.private.id
 }
 
 # Route table association for all subnets
@@ -311,7 +316,7 @@ resource "aws_security_group_rule" "private" {
 
 resource "aws_network_interface" "management" {
   subnet_id         = aws_subnet.management.id
-  private_ips       = [cidrhost(var.managment_subnet_cidr_block,10)]
+  private_ips       = [cidrhost(var.management_subnet_cidr_block,10)]
   security_groups   = [aws_security_group.management.id]
   source_dest_check = true
 
@@ -406,7 +411,7 @@ resource "aws_instance" "this" {
 
   ebs_optimized = true
   ami           = data.aws_ami.ubuntu_linux.image_id
-  instance_type = var.instance_type
+  instance_type = "t3.small"
   key_name      = var.key_name
 
   monitoring = false

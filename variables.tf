@@ -33,12 +33,6 @@ variable "cidr_block" {
   description = "CIDR block for the VPC"
 }
 
-variable "availability_zones" {
-  default     = "us-east-1a"
-  type        = string
-  description = "List of availability zones"
-}
-
 variable "public_subnet_cidr_block" {
   default     = "10.0.0.0/24"
   type        = string
@@ -59,4 +53,3 @@ variable "private_subnet_cidr_block" {
 
 variable key_name {
 }
-
